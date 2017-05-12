@@ -47,6 +47,8 @@ function Queue(mongoDbClient, name, opts) {
     if ( opts.deadQueue ) {
         this.deadQueue = opts.deadQueue
         this.maxRetries = opts.maxRetries || 5
+    } else {
+        this.maxRetries = opts.maxRetries || Infinity
     }
 }
 
@@ -174,11 +176,10 @@ Queue.prototype.get = function(opts, callback) {
             payload : msg.payload,
             tries   : msg.tries,
         }
-        // if we have a deadQueue, then check the tries, else don't
-        if ( self.deadQueue ) {
-            // check the tries
-            if ( msg.tries > self.maxRetries ) {
-                // So:
+        // check the tries
+        if ( msg.tries > self.maxRetries ) {
+            // if we have a deadQueue, retire it into there
+            if ( self.deadQueue ) {                // So:
                 // 1) add this message to the deadQueue
                 // 2) ack this message from the regular queue
                 // 3) call ourself to return a new message (if exists)
@@ -190,6 +191,13 @@ Queue.prototype.get = function(opts, callback) {
                     })
                 })
                 return
+            }
+            // otherwise, mark it as completed
+            else {
+                self.ack(msg.ack, function(err) {
+                    if (err) return callback(err)
+                    self.get(callback)
+                })
             }
         }
 
