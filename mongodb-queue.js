@@ -18,11 +18,11 @@ function id() {
 }
 
 function now() {
-    return (new Date()).toISOString()
+    return (new Date())
 }
 
 function nowPlusSecs(secs) {
-    return (new Date(Date.now() + secs * 1000)).toISOString()
+    return (new Date(Date.now() + secs * 1000))
 }
 
 module.exports = function(mongoDbClient, name, opts) {
@@ -60,6 +60,47 @@ Queue.prototype.createIndexes = function(callback) {
             callback(null, indexname)
         })
     })
+}
+
+Queue.prototype.migrate = function(callback) {
+    var self = this
+
+    var operations = []
+    var addOperation = function(document) {
+        var changes = {}
+        if (typeof document.deleted === 'string') {
+            changes.deleted = new Date(document.deleted)
+        }
+        if (typeof document.visible === 'string') {
+            changes.visible = new Date(document.visible)
+        }
+        operations.push({
+            updateOne: {
+                filter: { _id: document._id },
+                update: { $set: changes }
+            }
+        })
+    }
+    var bulkWrite = function(err) {
+        if (err) return callback(err)
+        if (operations.length <= 0) {
+            return callback()
+        }
+        self.col.bulkWrite(operations, function(err, result) {
+            if (err) return callback(err)
+            callback(null, result.modifiedCount)
+        })
+    }
+
+    var query = {
+        $or: [
+            { deleted: { $type: 2 } },
+            { visible: { $type: 2 } }
+        ]
+    }
+    self.col.find(query)
+        .project({ deleted: 1, visible: 1 })
+        .forEach(addOperation, bulkWrite)
 }
 
 Queue.prototype.add = function(payload, opts, callback) {
