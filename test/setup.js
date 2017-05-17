@@ -10,7 +10,8 @@ module.exports = function(callback) {
         var collections = [
             'default', 'delay', 'multi', 'visibility', 'clean', 'ping',
             'stats1', 'stats2',
-            'queue', 'dead-queue', 'queue-2', 'dead-queue-2'
+            'queue', 'dead-queue', 'queue-2', 'dead-queue-2',
+            'debounce',
         ]
         collections.forEach(function(col) {
             db.collection(col).remove(function() {

@@ -113,30 +113,55 @@ Queue.prototype.add = function(payload, opts, callback) {
     }
     var delay = opts.delay || self.delay
     var visible = delay ? nowPlusSecs(delay) : now()
+    var debounce = opts.debounce || null
 
-    var msgs = []
-    if (payload instanceof Array) {
-        if (payload.length === 0) {
-            var errMsg = 'Queue.add(): Array payload length must be greater than 0'
-            return callback(new Error(errMsg))
-        }
-        payload.forEach(function(payload) {
-            msgs.push({
-                visible  : visible,
-                payload  : payload,
-            })
-        })
-    } else {
-        msgs.push({
-            visible  : visible,
-            payload  : payload,
-        })
+    var justOne = !Array.isArray(payload)
+    var payloads = justOne ? [payload] : payload
+    if (payloads.length <= 0) {
+        var errMsg = 'Queue.add(): Array payload length must be greater than 0'
+        return callback(new Error(errMsg))
     }
+    var operations = payloads.map(function(payload) {
+        if (debounce != null) {
+            return {
+                updateOne: {
+                    filter: {
+                        ack: null,
+                        deleted: null,
+                        debounce: debounce
+                    },
+                    update: {
+                        $set: {
+                            visible: visible,
+                            payload: payload,
+                        }
+                    },
+                    upsert: true
+                }
+            }
+        } else {
+            return {
+                insertOne: {
+                    visible: visible,
+                    payload: payload,
+                }
+            }
+        }
+    })
 
-    self.col.insertMany(msgs, function(err, results) {
+    self.col.bulkWrite(operations, function(err, result) {
         if (err) return callback(err)
-        if (payload instanceof Array) return callback(null, '' + results.insertedIds)
-        callback(null, '' + results.ops[0]._id)
+        var ids = payloads.map(function (_, index) {
+            var id = result.insertedIds[index]
+                || result.upsertedIds[index]
+                || '(debounced)'
+            return id
+        })
+        if (justOne) {
+            return callback(null, '' + ids[0])
+        } else {
+            return callback(null, '' + ids)
+        }
     })
 }
 
