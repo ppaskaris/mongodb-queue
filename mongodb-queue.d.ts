@@ -7,6 +7,7 @@ declare module "mongodb-queue" {
         delay?: number;
         deadQueue?: Queue;
         maxRetries?: number;
+        cleanAfterSeconds?: number;
     }
 
     interface AddOptions {

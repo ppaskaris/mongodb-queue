@@ -9,7 +9,7 @@ setup(function(db) {
     test('visibility: check message is back in queue after 3s', function(t) {
         t.plan(2)
 
-        var queue = mongoDbQueue(db, 'visibility', { visibility : 3 })
+        var queue = mongoDbQueue(db, 'visibility', { visibility : 3, cleanAfterSeconds: 7200 })
 
         queue.createIndexes(function(err, indexName) {
             t.ok(!err, 'There was no error when running .ensureIndexes()')

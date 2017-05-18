@@ -43,6 +43,7 @@ function Queue(mongoDbClient, name, opts) {
     this.col = mongoDbClient.collection(name)
     this.visibility = opts.visibility || 30
     this.delay = opts.delay || 0
+    this.cleanAfterSeconds = opts.cleanAfterSeconds >= 0 ? opts.cleanAfterSeconds : -1
 
     if ( opts.deadQueue ) {
         this.deadQueue = opts.deadQueue
@@ -57,9 +58,17 @@ Queue.prototype.createIndexes = function(callback) {
 
     self.col.createIndex({ deleted : 1, visible : 1 }, function(err, indexname) {
         if (err) return callback(err)
-        self.col.createIndex({ ack : 1 }, { unique : true, sparse : true }, function(err) {
+        var opts1 = { unique : true, sparse : true }
+        self.col.createIndex({ ack : 1 }, opts1, function(err) {
             if (err) return callback(err)
-            callback(null, indexname)
+            if (self.cleanAfterSeconds < 0) {
+                return callback(null, indexname)
+            }
+            var opts2 = { cleanAfterSeconds: self.cleanAfterSeconds }
+            self.col.createIndex({ deleted: 1 }, opts2, function(err) {
+                if (err) return callback(err)
+                callback(null, indexname)
+            })
         })
     })
 }
