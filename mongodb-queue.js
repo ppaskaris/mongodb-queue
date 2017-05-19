@@ -64,7 +64,7 @@ Queue.prototype.createIndexes = function(callback) {
             if (self.cleanAfterSeconds < 0) {
                 return callback(null, indexname)
             }
-            var opts2 = { cleanAfterSeconds: self.cleanAfterSeconds }
+            var opts2 = { expireAfterSeconds: self.cleanAfterSeconds }
             self.col.createIndex({ deleted: 1 }, opts2, function(err) {
                 if (err) return callback(err)
                 callback(null, indexname)
